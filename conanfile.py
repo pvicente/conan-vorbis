@@ -25,16 +25,23 @@ class VorbisConan(ConanFile):
             self.options.remove("fPIC")
 
     def source(self):
-        if self.version == "master":
-            zip_name = "%s.zip" % self.version
-        else:
+        if self.settings.os == "Windows":
             zip_name ="v%s.zip" % self.version
+        else:
+            zip_name = "libvorbis-%s.zip" % self.version
 
-        download("https://github.com/xiph/vorbis/archive/%s" % zip_name, zip_name)
+        if self.settings.os == "Windows":
+            download("https://github.com/xiph/vorbis/archive/%s" % zip_name, zip_name)
+        else:
+            download("http://downloads.xiph.org/releases/vorbis/%s" % zip_name, zip_name)
 
         unzip(zip_name)
         os.unlink(zip_name)
-        os.rename("%s-%s" % (self.name, self.version), self.sources_folder)
+        if self.settings.os == "Windows":
+            os.rename("%s-%s" % (self.name, self.version), self.sources_folder)
+        else:
+            os.rename("libvorbis-%s" % (self.version), self.sources_folder)
+        
 
     def build(self):
         if self.settings.compiler == "Visual Studio":

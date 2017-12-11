@@ -1,6 +1,8 @@
 from conans import ConanFile, AutoToolsBuildEnvironment, VisualStudioBuildEnvironment, tools
 from conans.tools import download, unzip, replace_in_file, build_sln_command, run_in_windows_bash, ConanException
 import os
+
+
 class VorbisConan(ConanFile):
     name = "vorbis"
     version = "1.3.5"
@@ -40,8 +42,7 @@ class VorbisConan(ConanFile):
         if self.settings.os == "Windows":
             os.rename("%s-%s" % (self.name, self.version), self.sources_folder)
         else:
-            os.rename("libvorbis-%s" % (self.version), self.sources_folder)
-        
+            os.rename("libvorbis-%s" % self.version, self.sources_folder)
 
     def build(self):
         if self.settings.compiler == "Visual Studio":
@@ -84,9 +85,7 @@ class VorbisConan(ConanFile):
                 else:
                     replace_in_file("%s\\%s\\win32\\VS2010\\vorbisenc\\vorbisenc%s.vcxproj" %
                                 (self.conanfile_directory, self.sources_folder, vs_suffix), "libogg_static.lib", "ogg.lib")
-                    
-                    
-                
+
                 vcvars = tools.vcvars_command(self.settings)
                 cd_build = "cd %s\\%s\\win32\\VS2010" % (self.conanfile_directory, self.sources_folder)
                 build_command = build_sln_command(self.settings, "vorbis%s.sln" % vs_suffix)
@@ -112,12 +111,20 @@ class VorbisConan(ConanFile):
                     run_in_windows_bash(self, "%s && ./configure" % cd_build)
                     run_in_windows_bash(self, "%s && make" % cd_build)
                 else:
-                    self.run("%s && chmod +x ./configure && ./configure" % cd_build)
+                    configure_options = " --prefix=%s" % self.package_folder
+                    if self.options.shared:
+                        configure_options += " --disable-static --enable-shared"
+                    else:
+                        configure_options += " --disable-shared --enable-static"
+                    self.run("%s && chmod +x ./configure" % cd_build)
+                    self.run("%s && chmod +x ./install-sh" % cd_build)
+                    self.run("%s && ./configure%s" % (cd_build, configure_options))
                     self.run("%s && make" % cd_build)
+                    self.run("%s && make install" % cd_build)
 
     def package(self):
         self.copy("FindVORBIS.cmake", ".", ".")
-        self.copy("include/vorbis/*", ".", "%s" % (self.sources_folder), keep_path=True)
+        self.copy("include/vorbis/*", ".", "%s" % self.sources_folder, keep_path=True)
         self.copy("%s/copying*" % self.sources_folder, dst="licenses",  ignore_case=True, keep_path=False)
 
         if self.settings.compiler == "Visual Studio":
@@ -127,15 +134,9 @@ class VorbisConan(ConanFile):
             self.copy(pattern="*.lib", dst="lib", keep_path=False)
         else:
             if self.options.shared:
-                if self.settings.os == "Macos":
-                    self.copy(pattern="*.dylib", dst="lib", keep_path=False)
-                elif self.settings.os == "Windows":
+                if self.settings.os == "Windows":
                     self.copy(pattern="*.dll.a", dst="lib", keep_path=False)
                     self.copy(pattern="*.dll", dst="bin", keep_path=False)
-                else:
-                    self.copy(pattern="*.so*", dst="lib", keep_path=False)
-            else:
-                self.copy(pattern="*.a", dst="lib", keep_path=False)
 
     def package_info(self):
         if self.settings.compiler == "Visual Studio" and self.version == "1.3.5":

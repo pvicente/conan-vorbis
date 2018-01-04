@@ -29,10 +29,11 @@ class VorbisConan(ConanFile):
             self.options.remove("fPIC")
 
     def source(self):
-        source_url = "https://github.com/xiph/vorbis"
-        tools.get("{0}/archive/v{1}.tar.gz".format(source_url, self.version))
-        extracted_dir = self.name + "-" + self.version
-        os.rename(extracted_dir, self.source_subfolder)
+        source_url = "http://downloads.xiph.org/releases"
+        archive_name = "lib" + self.name + "-" + self.version
+        tools.get("{url}/{libname}/{archive_name}.tar.gz" \
+            .format(url=source_url, libname=self.name, archive_name=archive_name))
+        os.rename(archive_name, self.source_subfolder)
 
     def build(self):
         if self.settings.compiler == "Visual Studio":

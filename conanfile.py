@@ -1,21 +1,23 @@
-from conans import ConanFile, AutoToolsBuildEnvironment, VisualStudioBuildEnvironment, tools
-from conans.tools import download, unzip, replace_in_file, build_sln_command, run_in_windows_bash, ConanException
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from conans import ConanFile, tools, AutoToolsBuildEnvironment, VisualStudioBuildEnvironment
+from conans.errors import ConanException
 import os
 
 
 class VorbisConan(ConanFile):
     name = "vorbis"
     version = "1.3.5"
-    sources_folder = "sources"
-    generators = "txt"
+    description="The VORBIS audio codec library"
+    url="http://github.com/bincrafters/conan-vorbis"
+    license="BSD"
+    exports = ["LICENSE.md", "FindVORBIS.cmake"]
+    source_subfolder = "sources"
     settings = "os", "arch", "build_type", "compiler"
     options = {"shared": [True, False], "fPIC": [True, False]}
     default_options = "shared=False", "fPIC=True"
-    url="http://github.com/dimi309/conan-packages"
-    description="The VORBIS library"
     requires = "ogg/1.3.3@bincrafters/stable"
-    license="BSD"
-    exports = "FindVORBIS.cmake"
 
     def configure(self):
         if self.settings.os == "Windows" and self.settings.compiler != "Visual Studio":
@@ -27,105 +29,61 @@ class VorbisConan(ConanFile):
             self.options.remove("fPIC")
 
     def source(self):
-        if self.settings.os == "Windows":
-            zip_name ="v%s.zip" % self.version
-        else:
-            zip_name = "libvorbis-%s.zip" % self.version
-
-        if self.settings.os == "Windows":
-            download("https://github.com/xiph/vorbis/archive/%s" % zip_name, zip_name)
-        else:
-            download("http://downloads.xiph.org/releases/vorbis/%s" % zip_name, zip_name)
-
-        unzip(zip_name)
-        os.unlink(zip_name)
-        if self.settings.os == "Windows":
-            os.rename("%s-%s" % (self.name, self.version), self.sources_folder)
-        else:
-            os.rename("libvorbis-%s" % self.version, self.sources_folder)
+        source_url = "http://downloads.xiph.org/releases"
+        archive_name = "lib" + self.name + "-" + self.version
+        tools.get("{url}/{libname}/{archive_name}.tar.gz" \
+            .format(url=source_url, libname=self.name, archive_name=archive_name))
+        os.rename(archive_name, self.source_subfolder)
 
     def build(self):
         if self.settings.compiler == "Visual Studio":
-            
-            env = VisualStudioBuildEnvironment(self)
-            with tools.environment_append(env.vars):
-            
-                if self.options.shared:
-                    vs_suffix = "_dynamic"
-                else:
-                    vs_suffix = "_static"
-
-                libdirs="<AdditionalLibraryDirectories>"
-                libdirs_ext="<AdditionalLibraryDirectories>$(LIB);"
-                if self.options.shared:
-                    replace_in_file("%s\\%s\\win32\\VS2010\\libvorbis\\libvorbis%s.vcxproj" %
-                                (self.conanfile_directory, self.sources_folder, vs_suffix), libdirs, libdirs_ext)
-                    replace_in_file("%s\\%s\\win32\\VS2010\\libvorbis\\libvorbis%s.vcxproj" %
-                                (self.conanfile_directory, self.sources_folder, vs_suffix), "libogg.lib", "ogg.lib")
-                if self.options.shared:
-                    replace_in_file("%s\\%s\\win32\\VS2010\\libvorbisfile\\libvorbisfile%s.vcxproj" %
-                                (self.conanfile_directory, self.sources_folder, vs_suffix), libdirs, libdirs_ext)
-                    replace_in_file("%s\\%s\\win32\\VS2010\\libvorbisfile\\libvorbisfile%s.vcxproj" %
-                                (self.conanfile_directory, self.sources_folder, vs_suffix),  "libogg.lib", "ogg.lib")
-                replace_in_file("%s\\%s\\win32\\VS2010\\vorbisdec\\vorbisdec%s.vcxproj" %
-                                (self.conanfile_directory, self.sources_folder, vs_suffix), libdirs, libdirs_ext)
+            env_build = VisualStudioBuildEnvironment(self)
+            with tools.environment_append(env_build.vars):
+                for project in ["vorbisenc", "vorbisdec", "libvorbis", "libvorbisfile"]:
+                    self.update_project_content(project)
                 
-                if self.options.shared:
-                    replace_in_file("%s\\%s\\win32\\VS2010\\vorbisdec\\vorbisdec%s.vcxproj" %
-                                (self.conanfile_directory, self.sources_folder, vs_suffix), "libogg.lib", "ogg.lib")
-                else:
-                    replace_in_file("%s\\%s\\win32\\VS2010\\vorbisdec\\vorbisdec%s.vcxproj" %
-                                (self.conanfile_directory, self.sources_folder, vs_suffix), "libogg_static.lib", "ogg.lib")
-                    
-                replace_in_file("%s\\%s\\win32\\VS2010\\vorbisenc\\vorbisenc%s.vcxproj" %
-                                (self.conanfile_directory, self.sources_folder, vs_suffix), libdirs, libdirs_ext)
-                if self.options.shared:
-                    replace_in_file("%s\\%s\\win32\\VS2010\\vorbisenc\\vorbisenc%s.vcxproj" %
-                                (self.conanfile_directory, self.sources_folder, vs_suffix), "libogg.lib", "ogg.lib")
-                else:
-                    replace_in_file("%s\\%s\\win32\\VS2010\\vorbisenc\\vorbisenc%s.vcxproj" %
-                                (self.conanfile_directory, self.sources_folder, vs_suffix), "libogg_static.lib", "ogg.lib")
-
-                vcvars = tools.vcvars_command(self.settings)
-                cd_build = "cd %s\\%s\\win32\\VS2010" % (self.conanfile_directory, self.sources_folder)
-                build_command = build_sln_command(self.settings, "vorbis%s.sln" % vs_suffix)
-                self.run("%s && %s && %s" % (vcvars, cd_build, build_command.replace("x86", "Win32")))
+                sln_filename = "vorbis" + self.get_msvc_suffix() + ".sln"
+                sln_path = os.path.join(self.source_subfolder, "win32", "VS2010")
+                
+                msvc_command = tools.msvc_build_command(self.settings, sln_filename) \
+                    .replace('Platform="x86"', 'Platform="Win32"')
+                
+                with tools.chdir(sln_path):
+                    self.run(msvc_command)
 
         else:
-            base_path = ("%s/" % self.conanfile_directory) if self.settings.os != "Windows" else ""
-            cd_build = "cd %s%s" % (base_path, self.sources_folder)
-            
             env = AutoToolsBuildEnvironment(self)
-
             if self.settings.os != "Windows":
                 env.fpic = self.options.fPIC 
 
             with tools.environment_append(env.vars):
+                with tools.chdir(self.source_subfolder):
+                    if self.settings.os == "Macos":
+                        old_str = '-install_name \\$rpath/\\$soname'
+                        new_str = '-install_name \\$soname'
+                        tools.replace_in_file("configure", old_str, new_str)
 
-                if self.settings.os == "Macos":
-                    old_str = '-install_name \\$rpath/\\$soname'
-                    new_str = '-install_name \\$soname'
-                    replace_in_file("%s/%s/configure" % (self.conanfile_directory, self.sources_folder), old_str, new_str)
-
-                if self.settings.os == "Windows":
-                    run_in_windows_bash(self, "%s && ./configure" % cd_build)
-                    run_in_windows_bash(self, "%s && make" % cd_build)
-                else:
-                    configure_options = " --prefix=%s" % self.package_folder
-                    if self.options.shared:
-                        configure_options += " --disable-static --enable-shared"
+                    if self.settings.os == "Windows":
+                        tools.run_in_windows_bash(self, "./configure")
+                        tools.run_in_windows_bash(self, "make")
                     else:
-                        configure_options += " --disable-shared --enable-static"
-                    self.run("%s && chmod +x ./configure" % cd_build)
-                    self.run("%s && chmod +x ./install-sh" % cd_build)
-                    self.run("%s && ./configure%s" % (cd_build, configure_options))
-                    self.run("%s && make" % cd_build)
-                    self.run("%s && make install" % cd_build)
+                        configure_options = " --prefix=%s" % self.package_folder
+                        if self.options.shared:
+                            configure_options += " --disable-static --enable-shared"
+                        else:
+                            configure_options += " --disable-shared --enable-static"
+                        self.run("chmod +x ./configure")
+                        self.run("chmod +x ./install-sh")
+                        self.run("./configure%s" % configure_options)
+                        self.run("make")
+                        self.run("make install")
 
     def package(self):
-        self.copy("FindVORBIS.cmake", ".", ".")
-        self.copy("include/vorbis/*", ".", "%s" % self.sources_folder, keep_path=True)
-        self.copy("%s/copying*" % self.sources_folder, dst="licenses",  ignore_case=True, keep_path=False)
+        self.copy("FindOGG.cmake")
+        self.copy("COPYING", src=self.source_subfolder, keep_path=False)
+        src_include_dir = os.path.join(self.source_subfolder, "include")
+        
+        self.copy("*", dst="include", src=src_include_dir, keep_path=True)
 
         if self.settings.compiler == "Visual Studio":
             if self.options.shared:
@@ -151,3 +109,26 @@ class VorbisConan(ConanFile):
 
         if self.settings.os == "Linux" and not self.options.shared:
             self.cpp_info.libs.append("m")
+
+    def update_project_content(self, project):
+        libdirs="<AdditionalLibraryDirectories>"
+        libdirs_ext="<AdditionalLibraryDirectories>$(LIB);"
+        path = self.get_vcxproj_path(project)
+
+        updated_content = tools \
+            .load(path) \
+            .replace("libogg.lib", "ogg.lib") \
+            .replace("libogg_static.lib", "ogg.lib") \
+            .replace(libdirs, libdirs_ext)
+            
+        tools.save(path, updated_content)
+        
+    def get_vcxproj_path(self, project):
+        filename = self.get_vcxproj_filename(project)
+        return os.path.join(self.source_subfolder, "win32", "VS2010", project, filename)
+        
+    def get_vcxproj_filename(self, project):
+        return project + self.get_msvc_suffix() + ".vcxproj"
+
+    def get_msvc_suffix(self):
+        return "_dynamic" if self.options.shared else "_static"

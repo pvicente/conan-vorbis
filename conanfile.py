@@ -45,7 +45,7 @@ class VorbisConan(ConanFile):
                 sln_path = os.path.join(self.source_subfolder, "win32", "VS2010")
                 
                 msvc_command = tools.msvc_build_command(self.settings, sln_filename) \
-                    .replace('Platform="x86"', 'Platform="x86"')
+                    .replace('Platform="x86"', 'Platform="Win32"')
                 
                 with tools.chdir(sln_path):
                     self.run(msvc_command)

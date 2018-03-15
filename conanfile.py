@@ -20,17 +20,18 @@ class VorbisConan(ConanFile):
     default_options = "shared=False", "fPIC=True"
     requires = "ogg/1.3.3@bincrafters/stable"
 
+    def config_options(self):
+        if self.settings.os == "Windows":
+            self.options.remove("fPIC")
+
     def configure(self):
         if self.settings.os == "Windows" and self.settings.compiler != "Visual Studio":
             raise ConanException(
                 "On Windows, version 1.3.5 of the vorbis package only supports "
                 "the Visual Studio compiler for the time being."
             )
-            
-        del self.settings.compiler.libcxx
 
-        if self.settings.os == "Windows":
-            self.options.remove("fPIC")
+        del self.settings.compiler.libcxx
 
     def source(self):
         source_url = "http://downloads.xiph.org/releases"

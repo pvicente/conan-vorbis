@@ -9,9 +9,10 @@ import os
 class VorbisConan(ConanFile):
     name = "vorbis"
     version = "1.3.5"
-    description="The VORBIS audio codec library"
-    url="http://github.com/bincrafters/conan-vorbis"
-    license="BSD"
+    description = "The VORBIS audio codec library"
+    url = "http://github.com/bincrafters/conan-vorbis"
+    homepage = "https://xiph.org/vorbis/"
+    license = "BSD"
     exports = ["LICENSE.md", "FindVORBIS.cmake"]
     source_subfolder = "sources"
     settings = "os", "arch", "build_type", "compiler"
@@ -21,7 +22,10 @@ class VorbisConan(ConanFile):
 
     def configure(self):
         if self.settings.os == "Windows" and self.settings.compiler != "Visual Studio":
-            raise ConanException("On Windows, version 1.3.5 of the vorbis package only supports the Visual Studio compiler for the time being.")
+            raise ConanException(
+                "On Windows, version 1.3.5 of the vorbis package only supports "
+                "the Visual Studio compiler for the time being."
+            )
             
         del self.settings.compiler.libcxx
 
@@ -31,8 +35,9 @@ class VorbisConan(ConanFile):
     def source(self):
         source_url = "http://downloads.xiph.org/releases"
         archive_name = "lib" + self.name + "-" + self.version
-        tools.get("{url}/{libname}/{archive_name}.tar.gz" \
-            .format(url=source_url, libname=self.name, archive_name=archive_name))
+        tools.get("{url}/{libname}/{archive_name}.tar.gz".format(
+            url=source_url, libname=self.name, archive_name=archive_name)
+        )
         os.rename(archive_name, self.source_subfolder)
 
     def build(self):

@@ -82,23 +82,21 @@ class VorbisConan(ConanFile):
     def build_with_autotools(self):
         env = AutoToolsBuildEnvironment(self)
 
-        with tools.environment_append(env.vars):
-            with tools.chdir(self.source_subfolder):
+        with tools.chdir(self.source_subfolder):
+            with tools.environment_append(env.vars):
                 if self.settings.os == "Macos":
                     old_str = '-install_name \\$rpath/\\$soname'
                     new_str = '-install_name \\$soname'
                     tools.replace_in_file("configure", old_str, new_str)
 
-                configure_options = " --prefix=%s" % self.package_folder
+                configure_args = ["--prefix=%s" % self.package_folder]
                 if self.options.shared:
-                    configure_options += " --disable-static --enable-shared"
+                    configure_args.extend(["--disable-static", "--enable-shared"])
                 else:
-                    configure_options += " --disable-shared --enable-static"
-                self.run("chmod +x ./configure")
-                self.run("chmod +x ./install-sh")
-                self.run("./configure%s" % configure_options)
-                self.run("make")
-                self.run("make install")
+                    configure_args.extend(["--disable-shared", "--enable-static"])
+                env.configure(args=configure_args)
+                env.make()
+                env.make(args=["install"])
 
     def build(self):
         if self.settings.compiler == "Visual Studio":

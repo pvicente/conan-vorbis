@@ -42,18 +42,41 @@ class VorbisConan(ConanFile):
         os.rename(archive_name, self.source_subfolder)
 
     def build_with_visual_studio(self):
+
+        def update_projects_in_solution(solution_folder, shared):
+            """
+            Update vs projects in solution_folder to build with ogg dependency from conan
+            :param solution_folder: solution folder
+            :param shared: True or False
+            :returns solution filename
+            """
+            suffix = "_dynamic" if shared else "_static"
+
+            for project in ["vorbisenc", "vorbisdec", "libvorbis", "libvorbisfile"]:
+                filename = project + suffix + ".vcxproj"
+                path = os.path.join(solution_folder, project, filename)
+                libdirs = "<AdditionalLibraryDirectories>"
+                libdirs_ext = "<AdditionalLibraryDirectories>$(LIB);"
+
+                updated_content = tools \
+                    .load(path) \
+                    .replace("libogg.lib", "ogg.lib") \
+                    .replace("libogg_static.lib", "ogg.lib") \
+                    .replace(libdirs, libdirs_ext)
+
+                tools.save(path, updated_content)
+
+            return "vorbis" + suffix + ".sln"
+
+        sln_folder = os.path.join(self.source_subfolder, "win32", "VS2010")
+        sln_filename = update_projects_in_solution(sln_folder, self.options.shared)
+
         env_build = VisualStudioBuildEnvironment(self)
         with tools.environment_append(env_build.vars):
-            for project in ["vorbisenc", "vorbisdec", "libvorbis", "libvorbisfile"]:
-                self.update_project_content(project)
-
-            sln_filename = "vorbis" + self.get_msvc_suffix() + ".sln"
-            sln_path = os.path.join(self.source_subfolder, "win32", "VS2010")
-
             msvc_command = tools.msvc_build_command(self.settings, sln_filename) \
                 .replace('Platform="x86"', 'Platform="Win32"')
 
-            with tools.chdir(sln_path):
+            with tools.chdir(sln_folder):
                 self.run(msvc_command)
 
     def build_with_autotools(self):
@@ -120,26 +143,3 @@ class VorbisConan(ConanFile):
 
         if self.settings.os == "Linux" and not self.options.shared:
             self.cpp_info.libs.append("m")
-
-    def update_project_content(self, project):
-        libdirs="<AdditionalLibraryDirectories>"
-        libdirs_ext="<AdditionalLibraryDirectories>$(LIB);"
-        path = self.get_vcxproj_path(project)
-
-        updated_content = tools \
-            .load(path) \
-            .replace("libogg.lib", "ogg.lib") \
-            .replace("libogg_static.lib", "ogg.lib") \
-            .replace(libdirs, libdirs_ext)
-            
-        tools.save(path, updated_content)
-        
-    def get_vcxproj_path(self, project):
-        filename = self.get_vcxproj_filename(project)
-        return os.path.join(self.source_subfolder, "win32", "VS2010", project, filename)
-        
-    def get_vcxproj_filename(self, project):
-        return project + self.get_msvc_suffix() + ".vcxproj"
-
-    def get_msvc_suffix(self):
-        return "_dynamic" if self.options.shared else "_static"

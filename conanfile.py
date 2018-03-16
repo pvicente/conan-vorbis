@@ -127,7 +127,7 @@ class VorbisConan(ConanFile):
                     self.copy(pattern="*.dll", dst="bin", keep_path=False)
 
     def package_info(self):
-        if self.settings.compiler == "Visual Studio" and self.version == "1.3.5":
+        if self.settings.compiler == "Visual Studio":
             if self.options.shared:
                 self.cpp_info.libs = ['libvorbis', 'libvorbisfile']
             else:

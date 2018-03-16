@@ -41,48 +41,53 @@ class VorbisConan(ConanFile):
         )
         os.rename(archive_name, self.source_subfolder)
 
+    def build_with_visual_studio(self):
+        env_build = VisualStudioBuildEnvironment(self)
+        with tools.environment_append(env_build.vars):
+            for project in ["vorbisenc", "vorbisdec", "libvorbis", "libvorbisfile"]:
+                self.update_project_content(project)
+
+            sln_filename = "vorbis" + self.get_msvc_suffix() + ".sln"
+            sln_path = os.path.join(self.source_subfolder, "win32", "VS2010")
+
+            msvc_command = tools.msvc_build_command(self.settings, sln_filename) \
+                .replace('Platform="x86"', 'Platform="Win32"')
+
+            with tools.chdir(sln_path):
+                self.run(msvc_command)
+
+    def build_with_autotools(self):
+        env = AutoToolsBuildEnvironment(self)
+        if self.settings.os != "Windows":
+            env.fpic = self.options.fPIC
+
+        with tools.environment_append(env.vars):
+            with tools.chdir(self.source_subfolder):
+                if self.settings.os == "Macos":
+                    old_str = '-install_name \\$rpath/\\$soname'
+                    new_str = '-install_name \\$soname'
+                    tools.replace_in_file("configure", old_str, new_str)
+
+                if self.settings.os == "Windows":
+                    tools.run_in_windows_bash(self, "./configure")
+                    tools.run_in_windows_bash(self, "make")
+                else:
+                    configure_options = " --prefix=%s" % self.package_folder
+                    if self.options.shared:
+                        configure_options += " --disable-static --enable-shared"
+                    else:
+                        configure_options += " --disable-shared --enable-static"
+                    self.run("chmod +x ./configure")
+                    self.run("chmod +x ./install-sh")
+                    self.run("./configure%s" % configure_options)
+                    self.run("make")
+                    self.run("make install")
+
     def build(self):
         if self.settings.compiler == "Visual Studio":
-            env_build = VisualStudioBuildEnvironment(self)
-            with tools.environment_append(env_build.vars):
-                for project in ["vorbisenc", "vorbisdec", "libvorbis", "libvorbisfile"]:
-                    self.update_project_content(project)
-                
-                sln_filename = "vorbis" + self.get_msvc_suffix() + ".sln"
-                sln_path = os.path.join(self.source_subfolder, "win32", "VS2010")
-                
-                msvc_command = tools.msvc_build_command(self.settings, sln_filename) \
-                    .replace('Platform="x86"', 'Platform="Win32"')
-                
-                with tools.chdir(sln_path):
-                    self.run(msvc_command)
-
+            self.build_with_visual_studio()
         else:
-            env = AutoToolsBuildEnvironment(self)
-            if self.settings.os != "Windows":
-                env.fpic = self.options.fPIC 
-
-            with tools.environment_append(env.vars):
-                with tools.chdir(self.source_subfolder):
-                    if self.settings.os == "Macos":
-                        old_str = '-install_name \\$rpath/\\$soname'
-                        new_str = '-install_name \\$soname'
-                        tools.replace_in_file("configure", old_str, new_str)
-
-                    if self.settings.os == "Windows":
-                        tools.run_in_windows_bash(self, "./configure")
-                        tools.run_in_windows_bash(self, "make")
-                    else:
-                        configure_options = " --prefix=%s" % self.package_folder
-                        if self.options.shared:
-                            configure_options += " --disable-static --enable-shared"
-                        else:
-                            configure_options += " --disable-shared --enable-static"
-                        self.run("chmod +x ./configure")
-                        self.run("chmod +x ./install-sh")
-                        self.run("./configure%s" % configure_options)
-                        self.run("make")
-                        self.run("make install")
+            self.build_with_autotools()
 
     def package(self):
         self.copy("FindOGG.cmake")

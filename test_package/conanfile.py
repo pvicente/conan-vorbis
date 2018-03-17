@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 
+
 class TestPackageConan(ConanFile):
     settings = "os", "compiler", "build_type", "arch"
     generators = "cmake"
@@ -25,13 +26,13 @@ class TestPackageConan(ConanFile):
 
     def test(self):
         with tools.chdir("bin"):
-            with open("sample.wav", "rb") as input:
-                with open("sample.ogg", "wb") as output:
+            with open("sample.wav", "rb") as input_file:
+                with open("sample.ogg", "wb") as output_file:
                     try:
                         subprocess.check_call(
                             [".%stest_package" % os.sep],
-                            stdin=input,
-                            stdout=output,
+                            stdin=input_file,
+                            stdout=output_file,
                             stderr=subprocess.STDOUT
                         )
                     except subprocess.CalledProcessError as e:

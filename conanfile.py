@@ -84,12 +84,13 @@ class VorbisConan(ConanFile):
 
         with tools.chdir(self.source_subfolder):
             with tools.environment_append(env.vars):
-                if self.settings.os == "Macos":
-                    old_str = '-install_name \\$rpath/\\$soname'
-                    new_str = '-install_name \\$soname'
-                    tools.replace_in_file("configure", old_str, new_str)
+
+                if self.settings.compiler == "clang" and self.settings.arch == "x86":
+                    # https://bugs.chromium.org/p/chromium/issues/detail?id=534997
+                    tools.replace_in_file("configure", " -mno-ieee-fp ", " ")
 
                 configure_args = ["--prefix=%s" % self.package_folder]
+
                 if self.options.shared:
                     configure_args.extend(["--disable-static", "--enable-shared"])
                 else:

@@ -73,7 +73,7 @@ class VorbisConan(ConanFile):
 
         with tools.chdir(sln_folder):
             msbuild = MSBuild(self)
-            msbuild.build(sln_filename)
+            msbuild.build(sln_filename, platforms={"x86": "Win32"})
 
     def build_with_autotools(self):
         env = AutoToolsBuildEnvironment(self)

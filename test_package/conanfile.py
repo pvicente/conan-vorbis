@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-from conans import ConanFile, CMake, tools, RunEnvironment
+from __future__ import print_function
+from conans import ConanFile, CMake, tools
 import os
+import subprocess
+import sys
 
 
 class TestPackageConan(ConanFile):
@@ -14,12 +16,27 @@ class TestPackageConan(ConanFile):
         cmake.configure()
         cmake.build()
 
+    def imports(self):
+        self.copy("*.dll", dst="bin", src="bin")
+        self.copy("*.dylib*", dst="bin", src="lib")
+        self.copy('*.so*', dst='bin', src='lib')
+
+        test_package_dir = os.path.dirname(os.path.abspath(__file__))
+        self.copy("sample.wav", src=test_package_dir, dst="bin")
+
     def test(self):
-        with tools.environment_append(RunEnvironment(self).vars):
-            bin_path = os.path.join("bin", "test_package")
-            if self.settings.os == "Windows":
-                self.run(bin_path)
-            elif self.settings.os == "Macos":
-                self.run("DYLD_LIBRARY_PATH=%s %s" % (os.environ.get('DYLD_LIBRARY_PATH', ''), bin_path))
-            else:
-                self.run("LD_LIBRARY_PATH=%s %s" % (os.environ.get('LD_LIBRARY_PATH', ''), bin_path))
+        with tools.chdir("bin"):
+            with open("sample.wav", "rb") as input_file:
+                with open("sample.ogg", "wb") as output_file:
+                    try:
+                        subprocess.check_call(
+                            [".%stest_package" % os.sep],
+                            stdin=input_file,
+                            stdout=output_file,
+                            stderr=subprocess.STDOUT
+                        )
+                    except subprocess.CalledProcessError as e:
+                        print("Test Error!!! cmd: %s return code: %s output: %s" % (e.cmd, e.returncode, e.output))
+                        sys.exit(e.returncode)
+                    else:
+                        print("Test OK!!!")

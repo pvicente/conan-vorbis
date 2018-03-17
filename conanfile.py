@@ -103,7 +103,8 @@ class VorbisConan(ConanFile):
 
     def package(self):
         self.copy("FindOGG.cmake")
-        self.copy("COPYING", src=self.source_subfolder, keep_path=False)
+        self.copy("COPYING", src=self.source_subfolder, dst="licenses", keep_path=False)
+        self.copy("LICENSE.md", dst="licenses", keep_path=False)
 
         if self.settings.compiler == "Visual Studio":
             # Visual Studio build is not installing installing any artifact.

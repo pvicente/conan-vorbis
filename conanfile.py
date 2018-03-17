@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from conans import ConanFile, tools, AutoToolsBuildEnvironment, VisualStudioBuildEnvironment
+from conans import ConanFile, tools, AutoToolsBuildEnvironment, MSBuild
 from conans.errors import ConanException
 import os
 
@@ -71,13 +71,9 @@ class VorbisConan(ConanFile):
         sln_folder = os.path.join(self.source_subfolder, "win32", "VS2010")
         sln_filename = update_projects_in_solution(sln_folder, self.options.shared)
 
-        env_build = VisualStudioBuildEnvironment(self)
-        with tools.environment_append(env_build.vars):
-            msvc_command = tools.msvc_build_command(self.settings, sln_filename) \
-                .replace('Platform="x86"', 'Platform="Win32"')
-
-            with tools.chdir(sln_folder):
-                self.run(msvc_command)
+        with tools.chdir(sln_folder):
+            msbuild = MSBuild(self)
+            msbuild.build(sln_filename)
 
     def build_with_autotools(self):
         env = AutoToolsBuildEnvironment(self)

@@ -82,7 +82,7 @@ class VorbisConan(ConanFile):
             with tools.environment_append(env.vars):
 
                 if self.settings.compiler == "clang" and self.settings.arch == "x86":
-                    # https://bugs.chromium.org/p/chromium/issues/detail?id=534997
+                    # http://lists.llvm.org/pipermail/llvm-bugs/2015-November/043264.html
                     tools.replace_in_file("configure", " -mno-ieee-fp ", " ")
 
                 configure_args = ["--prefix=%s" % self.package_folder]

@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import print_function
 from conans import ConanFile, CMake, tools
 import os
 import subprocess
@@ -36,7 +35,9 @@ class TestPackageConan(ConanFile):
                             stderr=subprocess.STDOUT
                         )
                     except subprocess.CalledProcessError as e:
-                        print("Test Error!!! cmd: %s return code: %s output: %s" % (e.cmd, e.returncode, e.output))
+                        self.output.error(
+                            "Test Error!!! cmd: %s return code: %s output: %s" % (e.cmd, e.returncode, e.output)
+                        )
                         sys.exit(e.returncode)
                     else:
-                        print("Test OK!!!")
+                        self.output.success("Test OK!!!")
